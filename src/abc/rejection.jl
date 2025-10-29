@@ -38,9 +38,18 @@ function generate_parameters(
     return parameters, weights
 end
 
+# add custom function to facilitate safe threading
+function getparamsdist(input::SimulatedABCRejectionInput)
+    parameters, weight_value = generate_parameters(input.priors)
+    distance = simulate_distance(parameters, input.distance_simulation_input)
+    return [parameters, weight_value, distance[1]]
+end 
+
 function ABCrejection(input::SimulatedABCRejectionInput;
     write_progress::Bool = true,
     progress_every::Int = 1000)
+
+    numthreads = Threads.nthreads()
 
 	checkABCInput(input)
     if write_progress
@@ -55,32 +64,48 @@ function ABCrejection(input::SimulatedABCRejectionInput;
     weight_values = zeros(input.n_particles)
     distance = 0.0
 
+    
     # simulate
     while n_accepted < input.n_particles && n_tries < input.max_iter
 
-        parameters, weight_value = generate_parameters(input.priors)
-        try
-            distance = simulate_distance(parameters, input.distance_simulation_input)
-        catch e
-            if isa(e, DimensionMismatch)
-                # This prevents the whole code from failing if there is a problem
-                # solving the differential equation(s). The exception is thrown by the
-                # distance function
-                @warn "The summarised simulated data does not have the same size as the summarised reference data. If this is not happening at every iteration it may be due to the behaviour of OrdinaryDiffEq::solve - please check for related warnings. Continuing to the next iteration."
-                n_tries += 1
-                continue
-            else
-                throw(e)
+        param_set = Array{Matrix{Float64}}(undef,numthreads) #needs to be an array of matrixes
+        weight_value_set = zeros(numthreads)
+        distance_set = zeros(numthreads)
+
+        Threads.@threads for i in 1:numthreads
+            out = Array{Any}(undef, 3)
+            try
+               out .= getparamsdist(input)
+            catch e
+                if isa(e, DimensionMismatch)
+                    # This prevents the whole code from failing if there is a problem
+                    # solving the differential equation(s). The exception is thrown by the
+                    # distance function
+                    @warn "The summarised simulated data does not have the same size as the summarised reference data. If this is not happening at every iteration it may be due to the behaviour of OrdinaryDiffEq::solve - please check for related warnings. Continuing to the next iteration."
+                    #n_tries += 1
+                    continue
+                else
+                    throw(e)
+                end
             end
+           
+            param_set[i] = out[1]
+            weight_value_set[i] = out[2]
+            distance_set[i] = out[3]
+
         end
 
-        n_tries += 1
+        n_tries += numthreads
 
-        if distance[1] <= input.threshold
-            n_accepted += 1
-            accepted_parameters[n_accepted,:] = parameters
-            accepted_distances[n_accepted] = distance[1]
-            weight_values[n_accepted] = weight_value
+        for i in 1:numthreads
+            if n_accepted < input.n_particles
+                if distance_set[i] <= input.threshold
+                    n_accepted += 1
+                    accepted_parameters[n_accepted,:] = param_set[i]
+                    accepted_distances[n_accepted] = distance_set[i]
+                    weight_values[n_accepted] = weight_value_set[i]
+                end
+            end
         end
 
         if write_progress && (n_tries % progress_every == 0)

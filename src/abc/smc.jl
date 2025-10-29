@@ -183,12 +183,21 @@ end
 #
 # Iterate a simulated ABC-SMC
 #
+# add custom function to facilitate safe threading
+function getparamsdist(input::SimulatedABCSMCTracker, kernels::Matrix{ContinuousUnivariateDistribution})
+    parameters, weight_value = generate_parameters(input.priors, input.weights[end], kernels)
+    distance = simulate_distance(parameters, input.distance_simulation_input)
+    return [parameters, weight_value, distance[1]]
+end 
+
 function iterateABCSMC!(tracker::SimulatedABCSMCTracker,
         threshold::AbstractFloat,
         n_toaccept::Int;
         write_progress = true,
         progress_every = 1000)
-
+    
+    numthreads = Threads.nthreads()
+    
     if write_progress
         @info "GpABC SMC simulation ϵ = $threshold"
     end
@@ -207,31 +216,50 @@ function iterateABCSMC!(tracker::SimulatedABCSMCTracker,
 
     # simulate
     while n_accepted < n_toaccept && n_tries < tracker.max_iter
-        parameters, weight_value = generate_parameters(tracker.priors, tracker.weights[end], kernels)
+
+        param_set = Array{Matrix{Float64}}(undef,numthreads) #needs to be an array of matrixes
+        weight_value_set = zeros(numthreads)
+        distance_set = zeros(numthreads)
+
+        #parameters, weight_value = generate_parameters(tracker.priors, tracker.weights[end], kernels)
         # run simulation for a single particle
-        try
-            distance = simulate_distance(parameters, tracker.distance_simulation_input)
-        catch e
-            if isa(e, DimensionMismatch)
-                # This prevents the whole code from failing if there is a problem
-                # solving the differential equation(s). The exception is thrown by the
-                # distance function
-                @warn "The summarised simulated data does not have the same size as the summarised reference data. If this is not happening at every iteration it may be due to the behaviour of OrdinaryDiffEq::solve - please check for related warnings. Continuing to the next iteration."
-                n_tries += 1
-                continue
-            else
-                throw(e)
+        
+        Threads.@threads for i in 1:numthreads
+            out = Array{Any}(undef, 3)
+            try
+                out = getparamsdist(tracker, kernels)
+                #distance = simulate_distance(parameters, tracker.distance_simulation_input)
+            catch e
+                if isa(e, DimensionMismatch)
+                    # This prevents the whole code from failing if there is a problem
+                    # solving the differential equation(s). The exception is thrown by the
+                    # distance function
+                    @warn "The summarised simulated data does not have the same size as the summarised reference data. If this is not happening at every iteration it may be due to the behaviour of OrdinaryDiffEq::solve - please check for related warnings. Continuing to the next iteration."
+                    n_tries += 1
+                    continue
+                else
+                    throw(e)
+                end
             end
+
+            param_set[i] = out[1]
+            weight_value_set[i] = out[2]
+            distance_set[i] = out[3]
+
         end
 
-        n_tries += 1
+        n_tries += numthreads
 
         # Handle result
-        if distance[1] <= threshold
-            n_accepted += 1
-            population[n_accepted,:] = parameters
-            distances[n_accepted] = distance[1]
-            weight_values[n_accepted] = weight_value
+        for i in 1:numthreads
+            if n_accepted < n_toaccept
+                if distance_set[i] <= threshold
+                    n_accepted += 1
+                    population[n_accepted,:] = param_set[i]
+                    distances[n_accepted] = distance_set[i]
+                    weight_values[n_accepted] = weight_value_set[i]
+                end
+            end
         end
 
         if write_progress && (n_tries % progress_every == 0)
