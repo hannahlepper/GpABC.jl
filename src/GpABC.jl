@@ -29,7 +29,7 @@ export
     AbstractEmulatorRetraining, NoopRetraining, IncrementalRetraining, PreviousPopulationRetraining, PreviousPopulationThresholdRetraining,
     AbstractEmulatedParticleSelection, MeanEmulatedParticleSelection, MeanVarEmulatedParticleSelection, PosteriorSampledEmulatedParticleSelection;
 
-using Optim, Distributions, Distances, OrdinaryDiffEq, ForwardDiff, LinearAlgebra, Logging, Base.Threads
+using Optim, Distributions, Distances, OrdinaryDiffEq, ForwardDiff, LinearAlgebra, Logging, Base.Threads, JLD2
 
 import StatsBase
 

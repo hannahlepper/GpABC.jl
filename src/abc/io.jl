@@ -171,13 +171,14 @@ struct PosteriorSampledEmulatedParticleSelection <: AbstractEmulatedParticleSele
 end
 PosteriorSampledEmulatedParticleSelection() = PosteriorSampledEmulatedParticleSelection(false)
 
-struct SimulatedABCRejectionInput <: ABCRejectionInput
+struct SimulatedABCRejectionInput <: ABCRejectionInput #add file save location
     n_params::Int64
     n_particles::Int64
     threshold::Float64
     priors::AbstractArray{ContinuousUnivariateDistribution,1}
     distance_simulation_input::DistanceSimulationInput
     max_iter::Int
+    file_path::String
 end
 
 struct EmulatedABCRejectionInput{CUD<:ContinuousUnivariateDistribution, EPS<:AbstractEmulatedParticleSelection} <: ABCRejectionInput
@@ -193,22 +194,24 @@ end
 
 abstract type ABCSMCInput <: ABCInput end
 
-struct SimulatedABCSMCInput <: ABCSMCInput
+struct SimulatedABCSMCInput <: ABCSMCInput #add file save location
     n_params::Int64
     n_particles::Int64
     threshold_schedule::AbstractArray{Float64,1}
     priors::AbstractArray{ContinuousUnivariateDistribution,1}
     distance_simulation_input::DistanceSimulationInput
     max_iter::Int
+    file_path::String
 end
 
-SimulatedABCRejectionInput(smc_input::SimulatedABCSMCInput) =
+SimulatedABCRejectionInput(smc_input::SimulatedABCSMCInput) = 
     SimulatedABCRejectionInput(smc_input.n_params,
         smc_input.n_particles,
         smc_input.threshold_schedule[1],
         smc_input.priors,
         smc_input.distance_simulation_input,
-        smc_input.max_iter)
+        smc_input.max_iter,
+        smc_input.file_path)
 
 struct EmulatedABCSMCInput{CUD<:ContinuousUnivariateDistribution,
         ER<:AbstractEmulatorRetraining, EPS<:AbstractEmulatedParticleSelection} <: ABCSMCInput
@@ -240,6 +243,7 @@ mutable struct SimulatedABCSMCTracker <: ABCSMCTracker
     priors::AbstractArray{ContinuousUnivariateDistribution,1}
     distance_simulation_input::DistanceSimulationInput
     max_iter::Int64
+    pop_n::Int
 end
 
 mutable struct EmulatedABCSMCTracker{CUD<:ContinuousUnivariateDistribution, ET,

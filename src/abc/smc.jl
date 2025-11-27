@@ -131,8 +131,8 @@ function initialiseABCSMC(input::SimulatedABCSMCInput;
                              [rejection_output.weights],
                              input.priors,
                              input.distance_simulation_input,
-                             input.max_iter
-                             )
+                             input.max_iter,
+                             1)
 
     return tracker
 end
@@ -192,11 +192,14 @@ end
 
 function iterateABCSMC!(tracker::SimulatedABCSMCTracker,
         threshold::AbstractFloat,
-        n_toaccept::Int;
+        n_toaccept::Int,
+        file_path::String;
         write_progress = true,
         progress_every = 1000)
     
     numthreads = Threads.nthreads()
+    tracker.pop_n += 1
+    file_name = string(file_path, "pop", tracker.pop_n, ".jld2")
     
     if write_progress
         @info "GpABC SMC simulation ϵ = $threshold"
@@ -261,6 +264,9 @@ function iterateABCSMC!(tracker::SimulatedABCSMCTracker,
                 end
             end
         end
+
+        save_results = [n_tries, n_accepted, population, distances, weight_values]
+        @save file_name save_results
 
         if write_progress && (n_tries % progress_every == 0)
             @info "GpABC SMC simulation accepted $(n_accepted)/$(n_tries) particles."
@@ -387,7 +393,7 @@ function ABCSMC(
     if tracker.can_continue
         for i in 2:length(input.threshold_schedule)
             threshold = input.threshold_schedule[i]
-            iterateABCSMC!(tracker, threshold, input.n_particles;
+            iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
                 write_progress = write_progress,
                 progress_every = progress_every)
             if !tracker.can_continue

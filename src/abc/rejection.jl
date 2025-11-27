@@ -50,6 +50,7 @@ function ABCrejection(input::SimulatedABCRejectionInput;
     progress_every::Int = 1000)
 
     numthreads = Threads.nthreads()
+    filename = string(input.file_path, "pop1.jld2")
 
 	checkABCInput(input)
     if write_progress
@@ -107,6 +108,9 @@ function ABCrejection(input::SimulatedABCRejectionInput;
                 end
             end
         end
+
+        save_results = [n_tries, n_accepted, accepted_parameters, accepted_distances, weight_values]
+        @save filename save_results
 
         if write_progress && (n_tries % progress_every == 0)
             @info "GpABC rejection simulation. Accepted $(n_accepted)/$(n_tries) particles."

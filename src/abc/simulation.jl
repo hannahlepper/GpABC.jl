@@ -39,7 +39,8 @@ function SimulatedABCRejection(reference_data::AbstractArray{AF,2},
     simulator_function::Function,
     priors::AbstractArray{D,1},
     threshold::AF,
-    n_particles::Int;
+    n_particles::Int,
+    file_path::String;
     summary_statistic::Union{String,AbstractArray{String,1},Function}="keep_all",
     distance_function::Union{Function,Metric}=Distances.euclidean,
     max_iter::Int=10 * n_particles,
@@ -56,7 +57,8 @@ function SimulatedABCRejection(reference_data::AbstractArray{AF,2},
     input = SimulatedABCRejectionInput(n_params, n_particles, threshold,
                                         priors,
                                         distance_simulation_input,
-                                        max_iter)
+                                        max_iter,
+                                        file_path)
 
     return ABCrejection(input; kwargs...)
 
@@ -106,7 +108,8 @@ function SimulatedABCSMC(reference_data::AbstractArray{AF,2},
     simulator_function::Function,
     priors::AbstractArray{D,1},
     threshold_schedule::AbstractArray{AF,1},
-    n_particles::Int;
+    n_particles::Int,
+    file_path::String;
     summary_statistic::Union{String,AbstractArray{String,1},Function} = "keep_all",
     distance_function::Union{Function,Metric}=Distances.euclidean,
     max_iter::Int=10 * n_particles,
@@ -123,7 +126,7 @@ function SimulatedABCSMC(reference_data::AbstractArray{AF,2},
     distance_simulation_input = DistanceSimulationInput(reference_summary_statistic, simulator_function, summary_statistic, distance_function)
     input = SimulatedABCSMCInput(n_params, n_particles, threshold_schedule,
                                     priors, distance_simulation_input,
-                                    max_iter)
+                                    max_iter, file_path)
 
     return ABCSMC(input; kwargs...)
 
