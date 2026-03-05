@@ -265,7 +265,7 @@ function iterateABCSMC!(tracker::SimulatedABCSMCTracker,
             end
         end
 
-        save_results = [n_tries, n_accepted, population, distances, weight_values]
+        save_results = [n_tries, n_accepted, population, distances, weight_values, threshold]
         @save file_name save_results
 
         if write_progress && (n_tries % progress_every == 0)

@@ -19,6 +19,7 @@ export
 	ABCRejectionOutput, ABCSMCOutput,
 	SimulatedABCRejection, SimulatedABCSMC,
 	EmulatedABCRejection, EmulatedABCSMC,
+	SimulatedABCSMC_at,
 	read_rejection_output, read_smc_output,
 
 	LNAInput, LNA, compute_LNA, sample_LNA_trajectories, get_LNA_trajectories,
@@ -29,7 +30,7 @@ export
     AbstractEmulatorRetraining, NoopRetraining, IncrementalRetraining, PreviousPopulationRetraining, PreviousPopulationThresholdRetraining,
     AbstractEmulatedParticleSelection, MeanEmulatedParticleSelection, MeanVarEmulatedParticleSelection, PosteriorSampledEmulatedParticleSelection;
 
-using Optim, Distributions, Distances, OrdinaryDiffEq, ForwardDiff, LinearAlgebra, Logging, Base.Threads, JLD2
+using Optim, Distributions, Distances, OrdinaryDiffEq, OrdinaryDiffEqCore, ForwardDiff, LinearAlgebra, Logging, Base.Threads, JLD2, DensityRatioEstimation
 
 import StatsBase
 
@@ -46,6 +47,7 @@ include("abc/io.jl")
 include("abc/summary_stats.jl")
 include("abc/rejection.jl")
 include("abc/smc.jl")
+include("abc/smc_adapttol.jl")
 include("abc/model_selection_io.jl")
 include("abc/model_selection.jl")
 include("abc/simulation.jl")
