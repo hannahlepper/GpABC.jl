@@ -123,14 +123,17 @@ function ABCrejection_at(input::SimulatedABCRejectionInput;
 
 end
 
-function initialise_threshold(input::SimulatedABCSMCInput)
+function initialise_threshold(input::SimulatedABCSMCInput, kmax::Float64)
 
     numthreads = Threads.nthreads()
-    max = round(Int, input.threshold_schedule[1]*input.n_particles)
+    max = round(Int, kmax*input.n_particles)
+    parameters = zeros(max, input.n_params)
     distances = fill(Inf, max)
     k = 1
 
     _input = SimulatedABCRejectionInput(input)
+
+    @info "initialising threshold. Number of runs: $max"
 
     while k <= max
         Threads.@threads for i in 1:numthreads
@@ -152,18 +155,23 @@ function initialise_threshold(input::SimulatedABCSMCInput)
                     end
                 end
                 
+                parameters[kthread,:] = out[1] 
                 distances[kthread] = out[3]
+                
             end
 
         end
         k += numthreads
     end
 
-    lowestdistances = partialsort(distances, 1:input.n_particles)
-    maximum(lowestdistances)
+    valid = isfinite.(distances)
+    lowestdistances = partialsort(distances[valid], 1:input.n_particles)
+    highestdist = maximum(lowestdistances)
+    @info "Starting distance: $highestdist"
+    return highestdist, parameters[valid, :]
 end
 
-function adapt_threshold(particles_t, particles_tmin1)
+function adapt_threshold(particles_t, particles_tmin1, prev_q)
     x_nu = collect(eachrow(particles_t))
     x_de = collect(eachrow(particles_tmin1))
 
@@ -172,13 +180,11 @@ function adapt_threshold(particles_t, particles_tmin1)
 
     # Guard against degenerate cases
     if !isfinite(ct) || ct <= 0.0
-        @warn "Density ratio estimation returned invalid ct=$ct, defaulting q=0.99"
-        return 0.99
+        @warn "Density ratio estimation returned invalid ct=$ct, defaulting to previous threshold ($prev_q)"
+        return prev_q
     end
 
     q1 = clamp(1/ct, 0.0, 1.0)
-
-    @info "adapt_threshold: ct=$ct, q=$(clamp(1/ct, 0.0, 1.0))"
 
     return q1
 end
@@ -187,23 +193,31 @@ function ABCSMC_at(
         input::T;
         write_progress = true,
         progress_every = 1000,
-        max_populations::Int = 20,
+        k=2.,
+        min_populations=3,
+        max_populations=20
         ) where {T<:ABCSMCInput}
 
     #initialise tolerance threshold
-    threshold = initialise_threshold(input)
+    threshold, priordraws = initialise_threshold(input, k)
 
     #run rejection from priors (first population) and get tracker
     tracker = initialiseABCSMC_at(input; write_progress=write_progress,
                 progress_every=progress_every, threshold=threshold)
     
     #initialise adaptive quantile
-    q = 0.
+    q = 0.5
     q_history = Float64[]
 
     if tracker.can_continue
 
-        while (q < 0.99 || tracker.pop_n <= 3) && tracker.pop_n < max_populations
+        #get first adaptive threshold
+        q = adapt_threshold(tracker.population[end], priordraws, q)
+        push!(q_history, q)
+        threshold = quantile(tracker.distances[end], q)
+        @info "Next population distance quantile: $q"
+
+        while (q < 0.99 || tracker.pop_n <= min_populations) && tracker.pop_n < max_populations
 
             iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
                 write_progress = write_progress,
@@ -213,11 +227,11 @@ function ABCSMC_at(
                 break
             end
 
-            if tracker.pop_n >= 2
-                q = adapt_threshold(tracker.population[end], tracker.population[end-1])
-                push!(q_history, q)
-                threshold = quantile(tracker.distances[end], q)
-            end
+            q = adapt_threshold(tracker.population[end], tracker.population[end-1], q)
+            push!(q_history, q)
+            threshold = quantile(tracker.distances[end], q)
+            @info "Next population distance quantile: $q"
+
         end
     else
         @warn "No particles selected at initial rejection ABC step of simulated SMC ABC - terminating algorithm"
@@ -235,6 +249,9 @@ function SimulatedABCSMC_at(reference_data::AbstractArray{AF,2},
     summary_statistic::Union{String,AbstractArray{String,1},Function} = "keep_all",
     distance_function::Union{Function,Metric}=Distances.euclidean,
     max_iter::Int=10 * n_particles,
+    k::Float64=2.,
+    max_populations::Int=20,
+    min_populations::Int=3,
     kwargs...
     ) where {
     AF<:AbstractFloat,
@@ -250,6 +267,6 @@ function SimulatedABCSMC_at(reference_data::AbstractArray{AF,2},
                                     priors, distance_simulation_input,
                                     max_iter, file_path)
 
-    return ABCSMC_at(input; kwargs...)
+    return ABCSMC_at(input; k=k, min_populations=min_populations, max_populations=max_populations, kwargs...)
 
 end
