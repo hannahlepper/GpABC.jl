@@ -232,6 +232,9 @@ function ABCSMC_at(
             threshold = quantile(tracker.distances[end], q)
             @info "Next population distance quantile: $q"
 
+            file_name = string(input.file_path, "qhist.jld2")
+            @save file_name q_history
+
         end
     else
         @warn "No particles selected at initial rejection ABC step of simulated SMC ABC - terminating algorithm"
