@@ -171,7 +171,7 @@ function initialise_threshold(input::SimulatedABCSMCInput, kmax::Float64)
     return highestdist, parameters[valid, :]
 end
 
-function adapt_threshold(particles_t, particles_tmin1, prev_q)
+function adapt_threshold(particles_t, particles_tmin1)
     x_nu = collect(eachrow(particles_t))
     x_de = collect(eachrow(particles_tmin1))
 
@@ -180,11 +180,10 @@ function adapt_threshold(particles_t, particles_tmin1, prev_q)
 
     # Guard against degenerate cases
     if !isfinite(ct) || ct <= 0.0
-        @warn "Density ratio estimation returned invalid ct=$ct, defaulting to previous threshold ($prev_q)"
-        return prev_q
+        @warn "Density ratio estimation returned invalid ct=$ct"
     end
 
-    q1 = clamp(1/ct, 0.0, 1.0)
+    q1 = 1/ct
 
     return q1
 end
@@ -212,29 +211,39 @@ function ABCSMC_at(
     if tracker.can_continue
 
         #get first adaptive threshold
-        q = adapt_threshold(tracker.population[end], priordraws, q)
+        q = adapt_threshold(tracker.population[end], priordraws)
         push!(q_history, q)
-        threshold = quantile(tracker.distances[end], q)
-        @info "Next population distance quantile: $q"
-
-        while (q < 0.99 || tracker.pop_n <= min_populations) && tracker.pop_n < max_populations
-
-            iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
-                write_progress = write_progress,
-                progress_every = progress_every)
-
-            if !tracker.can_continue
-                break
-            end
-
-            q = adapt_threshold(tracker.population[end], tracker.population[end-1], q)
-            push!(q_history, q)
+        if !(isfinite(q))
+            @info "qt=$q: stopping simulation. "
+        else
             threshold = quantile(tracker.distances[end], q)
             @info "Next population distance quantile: $q"
 
-            file_name = string(input.file_path, "qhist.jld2")
-            @save file_name q_history
+            while (q < 0.99 || tracker.pop_n <= min_populations) && tracker.pop_n < max_populations
 
+                iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
+                    write_progress = write_progress,
+                    progress_every = progress_every)
+
+                if !tracker.can_continue
+                    break
+                end
+
+                q = adapt_threshold(tracker.population[end], tracker.population[end-1])
+                push!(q_history, q)
+
+                if !(isfinite(q))
+                    @info "qt=$q: stopping simulation. "
+                    break
+                end
+
+                threshold = quantile(tracker.distances[end], q)
+                @info "Next population distance quantile: $q"
+
+                file_name = string(input.file_path, "qhist.jld2")
+                @save file_name q_history
+
+            end
         end
     else
         @warn "No particles selected at initial rejection ABC step of simulated SMC ABC - terminating algorithm"
