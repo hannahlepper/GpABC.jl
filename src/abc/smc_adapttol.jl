@@ -194,7 +194,8 @@ function ABCSMC_at(
         progress_every = 1000,
         k=2.,
         min_populations=3,
-        max_populations=20
+        max_populations=20,
+        max_qt=0.99
         ) where {T<:ABCSMCInput}
 
     #initialise tolerance threshold
@@ -219,7 +220,7 @@ function ABCSMC_at(
             threshold = quantile(tracker.distances[end], q)
             @info "Next population distance quantile: $q"
 
-            while (q < 0.99 || tracker.pop_n <= min_populations) && tracker.pop_n < max_populations
+            while (q <= max_qt || tracker.pop_n <= min_populations) && tracker.pop_n < max_populations
 
                 iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
                     write_progress = write_progress,
@@ -264,6 +265,7 @@ function SimulatedABCSMC_at(reference_data::AbstractArray{AF,2},
     k::Float64=2.,
     max_populations::Int=20,
     min_populations::Int=3,
+    max_qt::Float64=0.99,
     kwargs...
     ) where {
     AF<:AbstractFloat,
@@ -279,6 +281,6 @@ function SimulatedABCSMC_at(reference_data::AbstractArray{AF,2},
                                     priors, distance_simulation_input,
                                     max_iter, file_path)
 
-    return ABCSMC_at(input; k=k, min_populations=min_populations, max_populations=max_populations, kwargs...)
+    return ABCSMC_at(input; k=k, min_populations=min_populations, max_populations=max_populations, max_qt=max_qt, kwargs...)
 
 end
