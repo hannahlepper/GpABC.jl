@@ -182,8 +182,8 @@ function estimatect(particles_t, particles_tmin1)
     x_nu = collect(eachrow(particles_t))
     x_de = collect(eachrow(particles_tmin1))
 
-    r = densratio(x_nu, x_de, KLIEP(), optlib=OptimLib)
-    ct = maximum(r)
+    r = densratiofunc(x_nu, x_de, KLIEP(), optlib=OptimLib)
+    ct = maximum(r(x) for x in x_nu) #maximum over current generation
 
     # Guard against degenerate cases
     if !isfinite(ct) || ct <= 0.0
