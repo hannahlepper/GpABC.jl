@@ -171,11 +171,24 @@ function initialise_threshold(input::SimulatedABCSMCInput, kmax::Float64)
     return highestdist, parameters[valid, :]
 end
 
+#based on: https://github.com/baggepinnen/LowLevelParticleFilters.jl/blob/master/src/resample.jl
 function resample_particles(particles, weights)
-    n = size(particles, 1)
-    weights_norm = StatsBase.Weights(weights ./ sum(weights))
-    resampled_indexes = sample(1:n, weights_norm, n, replace=true)
-    return particles[resampled_indexes,:]
+    N = length(weights)
+    new_particle_indexes = zeros(Int,N)
+    bins = cumsum(weights ./ sum(weights))
+    r = 0.5*bins[end]/N
+    s = r:(1/N):(bins[N]+r) # Added r in the end to ensure correct length (r < 1/N)
+    bo = 1
+    for i in 1:N
+        @inbounds for b in bo:N
+            if s[i] < bins[b]
+                new_particle_indexes[i] = b
+                bo = b
+                break
+            end
+        end
+    end
+    return particles[new_particle_indexes,:]
 end
 
 function estimatect(particles_t, particles_tmin1)
