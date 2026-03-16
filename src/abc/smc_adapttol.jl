@@ -241,7 +241,7 @@ function ABCSMC_at(
     if tracker.can_continue
 
         #get first adaptive threshold
-        q = adapt_threshold(tracker.population[end], priordraws, tracker.weights[end])
+        qt = adapt_threshold(tracker.population[end], priordraws, tracker.weights[end])
         push!(q_history, qt)
         if !(isfinite(qt))
             @info "qt=$qt: stopping simulation. "
