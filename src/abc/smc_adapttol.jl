@@ -195,10 +195,14 @@ function estimatect(particles_t, particles_tmin1)
     x_nu = collect(eachrow(particles_t))
     x_de = collect(eachrow(particles_tmin1))
 
-    r = densratiofunc(x_nu, x_de, KLIEP(b=20), optlib=ConvexLib)
-    ct = maximum(r(x) for x in x_nu) #maximum over current generation
-
-    # Guard against degenerate cases
+    ct=NaN
+    try
+        r = densratiofunc(x_nu, x_de, KLIEP(b=20), optlib=ConvexLib)
+        ct = maximum(r(x) for x in x_nu) #maximum over current generation
+    catch e
+        @warn "Error: " exception = (e, catch_backtrace())
+    end
+   
     if !isfinite(ct) || ct <= 0.0
         @warn "Density ratio estimation returned invalid ct=$ct"
     end
@@ -209,7 +213,14 @@ end
 function adapt_threshold(particles_t, priordraws, weights_t)
     resamp_par_t = resample_particles(particles_t, weights_t)
 
-    ct = median(filter(isfinite,[estimatect(resamp_par_t, priordraws) for _ in 1:10]))
+    valid_cts = filter(isfinite,[estimatect(resamp_par_t, priordraws) for _ in 1:10])
+
+    if isempty(validcts)
+        @warn "All density estimation rounds failed"
+        ct = NaN
+    else
+        ct = median(valid_cts)
+    end
 
     qt = 1/ct
     @info "ct: $ct, qt: $qt"
