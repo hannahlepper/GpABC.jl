@@ -195,9 +195,7 @@ function estimatect(particles_t, particles_tmin1)
     x_nu = collect(eachrow(particles_t))
     x_de = collect(eachrow(particles_tmin1))
 
-    n = size(particles_t)[1]
-    dre = fit(KLIEP, x_nu, x_de, LCV((σ=[0.5, 1.0, 2.0, 5.0], b=[10, 25, n])), optlib=ConvexLib)
-    r = densratiofunc(x_nu, x_de, dre, optlib=ConvexLib)
+    r = densratiofunc(x_nu, x_de, KLIEP(b=20), optlib=ConvexLib)
     ct = maximum(r(x) for x in x_nu) #maximum over current generation
 
     # Guard against degenerate cases
