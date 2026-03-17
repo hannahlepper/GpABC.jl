@@ -215,7 +215,7 @@ function adapt_threshold(particles_t, priordraws, weights_t)
 
     valid_cts = filter(isfinite,[estimatect(resamp_par_t, priordraws) for _ in 1:10])
 
-    if isempty(validcts)
+    if isempty(valid_cts)
         @warn "All density estimation rounds failed"
         ct = NaN
     else
