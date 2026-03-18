@@ -236,6 +236,10 @@ function adapt_threshold(particles_t, particles_tmin1, weights_t, weights_tmin1)
 
     qt = 1/ct
     @info "ct: $ct, qt: $qt"
+    if qt < 0.1
+        @info "qt too low ($qt=)- setting to 0.1"
+        qt = 0.1
+    end
 
     return qt
 end
