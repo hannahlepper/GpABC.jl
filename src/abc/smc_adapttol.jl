@@ -232,7 +232,14 @@ function adapt_threshold(particles_t, particles_tmin1, weights_t, weights_tmin1)
     resamp_par_t = resample_particles(particles_t, weights_t)
     resamp_par_tmin1 = resample_particles(particles_tmin1, weights_tmin1)
 
-    ct = median(filter(isfinite, [estimatect(resamp_par_t, resamp_par_tmin1) for _ in 1:10]))
+    valid_cts = filter(isfinite, [estimatect(resamp_par_t, resamp_par_tmin1) for _ in 1:10])
+
+    if isempty(valid_cts)
+        @warn "All density estimation rounds failed"
+        ct = NaN
+    else
+        ct = median(valid_cts)
+    end
 
     qt = 1/ct
     @info "ct: $ct, qt: $qt"
