@@ -20,6 +20,7 @@ export
 	SimulatedABCRejection, SimulatedABCSMC,
 	EmulatedABCRejection, EmulatedABCSMC,
 	SimulatedABCSMC_at,
+	SimulatedABCSMC_continue,
 	read_rejection_output, read_smc_output,
 
 	LNAInput, LNA, compute_LNA, sample_LNA_trajectories, get_LNA_trajectories,
@@ -55,5 +56,6 @@ include("abc/emulation.jl")
 include("abc/plot_recipe.jl")
 include("util/lna.jl")
 include("util/emulation_helpers.jl")
+include("abc/continue.jl")
 
 end;
