@@ -109,7 +109,7 @@ function ABCrejection(input::SimulatedABCRejectionInput;
             end
         end
 
-        save_results = [n_tries, n_accepted, accepted_parameters, accepted_distances, weight_values]
+        save_results = [n_tries, n_accepted, accepted_parameters, accepted_distances, weight_values, input.threshold]
         @save filename save_results
 
         if write_progress && (n_tries % progress_every == 0)
