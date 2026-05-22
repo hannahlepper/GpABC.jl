@@ -20,7 +20,7 @@ export
 	SimulatedABCRejection, SimulatedABCSMC,
 	EmulatedABCRejection, EmulatedABCSMC,
 	SimulatedABCSMC_at,
-	SimulatedABCSMC_continue,
+	SimulatedABCSMC_continue, SimulatedABCSMC_at_continue,
 	read_rejection_output, read_smc_output,
 
 	LNAInput, LNA, compute_LNA, sample_LNA_trajectories, get_LNA_trajectories,
