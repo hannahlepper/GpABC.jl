@@ -205,28 +205,31 @@ function ABCSMC_continue(
     
     n_tries = tracker.n_tries
     n_accepted = tracker.n_accepted
-    n_full_pops = sum(n_tries .< tracker.max_iter .&& .!(n_accepted .== input.n_particles))
     n_pops_so_far = length(n_tries)
+    last_pop_complete = !(n_accepted[end] < input.n_particles && n_tries[end] < tracker.max_iter)
 
-    if n_pops_so_far == n_full_pops #last population is complete
+    if last_pop_complete #last population is complete
         go_to_next = true
     else #last population is not complete, resume from this point
         go_to_next = false
     end
 
     if tracker.can_continue
-        for i in n_pops_so_far:length(input.threshold_schedule)
+        if !go_to_next
+            threshold = input.threshold_schedule[n_pops_so_far]
+            resumeABCSMC!(tracker, threshold, input.n_particles, input.file_path;
+                write_progress = write_progress,
+                progress_every = progress_every)
+            go_to_next = true
+        end
+    end
+    
+    if tracker.can_continue
+        for i in (n_pops_so_far+1):length(input.threshold_schedule)
             threshold = input.threshold_schedule[i]
-            if !go_to_next
-                resumeABCSMC!(tracker, threshold, input.n_particles, input.file_path;
-                    write_progress = write_progress,
-                    progress_every = progress_every)
-                go_to_next = true
-            else 
-                iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
-                    write_progress = write_progress,
-                    progress_every = progress_every)
-            end
+            iterateABCSMC!(tracker, threshold, input.n_particles, input.file_path;
+                write_progress = write_progress,
+                progress_every = progress_every)
             if !tracker.can_continue
                 break
             end
@@ -253,14 +256,14 @@ function ABCSMC_at_continue(
     n_tries = tracker.n_tries
     n_accepted = tracker.n_accepted
     n_pops_so_far = length(n_tries)
-    n_full_pops = sum(n_tries .< tracker.max_iter .&& .!(n_accepted .== input.n_particles))
+    last_pop_complete = !(n_accepted[end] < input.n_particles && n_tries[end] < tracker.max_iter)
     q_history = qhist
 
     if n_pops_so_far < 2
         @info "can't continue until have done initialisation step and first population. "
         return
     else
-        if n_pops_so_far == n_full_pops #last population is complete
+        if last_pop_complete #last population is complete
             qt = adapt_threshold(tracker.population[end], tracker.population[end-1], tracker.weights[end], tracker.weights[end-1])
                 push!(q_history, qt)
 
