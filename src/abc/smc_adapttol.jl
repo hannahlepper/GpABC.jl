@@ -192,8 +192,13 @@ function resample_particles(particles, weights)
 end
 
 function estimatect(particles_t, particles_tmin1)
-    x_nu = collect(eachrow(particles_t))
-    x_de = collect(eachrow(particles_tmin1))
+    # standardise each dimension by its pooled sample sd so that the fixed
+    # KLIEP kernel bandwidth is not dominated by large-scale parameters
+    allp = vcat(particles_t, particles_tmin1)
+    sds = map(j -> (s = std(@view allp[:, j]); s == 0 ? 1.0 : s), 1:size(allp, 2))
+
+    x_nu = collect(eachrow(particles_t ./ sds'))
+    x_de = collect(eachrow(particles_tmin1 ./ sds'))
 
     ct=NaN
     try
@@ -224,6 +229,10 @@ function adapt_threshold(particles_t, priordraws, weights_t)
 
     qt = 1/ct
     @info "ct: $ct, qt: $qt"
+    if qt < 0.1
+        @info "qt too low ($qt=)- setting to 0.1"
+        qt = 0.1
+    end
 
     return qt
 end
